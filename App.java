@@ -3,8 +3,11 @@
 // This is a simple Java program.
 // FileName : "HelloWorld.java".
 import java.io.FileReader; 
+import com.opencsv.CSVReader;
+import java.io.IOException;
 import java.util.List; 
 import com.opencsv.*; 
+import java.io.File;
 
 class Cell{
     //Columns 
@@ -106,6 +109,16 @@ class Cell{
     // Prints "Hello, World" to the terminal window.
     public static void main(String args[])
     {
-        System.out.println("Hello, World");
+        Cell Row;
+
+       try (CSVReader reader = new CSVReader(new FileReader("cells.csv"))) {
+        // Read the CSV file
+        
+    } catch (IOException e) {
+        // Handle the IOException
+        e.printStackTrace();
     }
+}
+
+
 }
