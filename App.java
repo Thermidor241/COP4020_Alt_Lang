@@ -6,15 +6,12 @@ import java.io.FileReader;
 import com.opencsv.CSVReader;
 import java.io.IOException;
 import com.opencsv.exceptions.CsvValidationException;
-import java.util.List; 
-import com.opencsv.*; 
-import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.commons.lang3.ObjectUtils.Null;
+
 
 class Cell{
     //Columns 
@@ -72,10 +69,6 @@ class Cell{
         return os;
     }
 
-    // Constructor 
-   /* public Cell(String oem, String model, int launch_ann, String l_status, String dimensions, float weight, String body_sim, String dis_type, float dis_size,String sensors, String platform, String os){
-
-    }*/
     // Setters 
 
 
@@ -128,7 +121,7 @@ class Cell{
     }
     
     public void setdim(String inp_dim){
-        if (inp_dim.isEmpty() || inp_dim == null){
+        if (inp_dim.isEmpty() || inp_dim == null || inp_dim == "-"){
             this.dimensions = null;
         }
         else{
@@ -170,18 +163,21 @@ class Cell{
     }
     }
 
-    public void setdissize(String d_size){
+    public void setdissize(String d_size) {
         Pattern size = Pattern.compile("\\d+(\\.\\d+)?\\s*inches");
         Matcher s = size.matcher(d_size);
-
-        if (s.find()){
+    
+        if (s.find()) {
             String newsize = s.group(1);
-            this.dis_size = Float.parseFloat(newsize);
-        }
-        else{
+            if (newsize != null) {
+                this.dis_size = Float.parseFloat(newsize);
+            } else {
+                // If decimal part is not present, use the whole matched string as size
+                this.dis_size = Float.parseFloat(s.group());
+            }
+        } else {
             this.dis_size = null;
         }
-
     }
 
     public void setres(String inp_res){
@@ -194,9 +190,8 @@ class Cell{
     }
  
     public void setsensors(String inp_sen){
-       String hasletters = "[^a-zA-Z]*";
-
-        if (inp_sen.isEmpty() || inp_sen == null || Pattern.matches(hasletters, inp_sen) == false){
+        String justnumbers = ".*\\d+.*";
+        if (inp_sen == null || inp_sen.isEmpty() || inp_sen.matches(justnumbers)){
             this.sensors = null;
         }
         else{
@@ -204,17 +199,14 @@ class Cell{
     }
     }
  
-    public void setos(String inp_os){
-       String hasletters = "[^a-zA-Z]*";
-
-        if (inp_os.isEmpty() || inp_os == null || Pattern.matches(hasletters, inp_os) == false){
+    public void setos(String inp_os) {
+        String justnumbers = ".*\\d+.*";
+        if (inp_os == null || inp_os.isEmpty() || inp_os.matches(justnumbers)) {
             this.os = null;
+        } else {
+            this.os = inp_os;
         }
-        else{
-        this.os = inp_os;
     }
-    }
-    
 
     //Transform functions
     //checks the string if the year is there
@@ -241,8 +233,129 @@ class Cell{
         }
         return numericPart.toString();
     }
-}
 
+    // 7 Methods to answer questions
+
+   public static void calculatehighestav(Map<Integer, Cell> map){
+    Map <String,Float> totalweightmap = new HashMap<>();
+    Map <String,Integer> countmap = new HashMap<>();
+        for (Cell row: map.values()){
+            if (row.getweight() != null){
+                String oem = row.getoem();
+                Float weight = row.getweight();
+
+                totalweightmap.put(oem,totalweightmap.getOrDefault(oem, 0.0f) + weight);
+                countmap.put(oem,countmap.getOrDefault(oem, 0) + 1);
+
+            }
+
+        }
+        String answerto1 = "";
+        Float  highest = 0.0f;
+
+        //Find oem with highest average
+
+        for (String oem : totalweightmap.keySet()){
+            Float totalweight = totalweightmap.get(oem);
+            Integer count = countmap.get(oem);
+
+            Float average = totalweight / count;
+            if (average > highest){
+                highest = average;
+                answerto1 = oem;
+            }
+
+        }
+        System.out.println("The brand with the highest average weight is " + answerto1);
+
+
+    }
+
+    public static void anstonumtwo(Map<Integer,Cell> map){
+
+        System.out.println("The brand and models of phones released in different years than announced are : ");
+        for (Cell row: map.values()){
+            if (row.getl_stat() != null && !row.getl_stat().equals("Discontinued") && !row.getl_stat().equals("Cancelled")){
+
+                 if (row.differentyear()){
+
+                    System.out.println( row.getoem() + row.getmodel());
+
+                }
+
+            }
+        }
+        
+    }
+// If its released in a different year than announced
+     public Boolean differentyear(){
+        Integer yearb = Integer.parseInt(this.getl_stat());
+
+        return !this.getlaunchan().equals(yearb);
+    }
+
+    //Answer to third question
+    public static void answerto3(Map<Integer,Cell> map){
+            Integer count = 0;
+        for (Cell row: map.values()){
+            if (row.getsensors() != null){
+                if (row.hasmultiplesensor(row.getsensors())) {
+                    count++;
+                }
+            }
+        }
+        System.out.println("The number of phones with one sensor is " + count);
+    }
+    //If there are multiple sensors
+    public Boolean hasmultiplesensor(String sensors) {
+        // Check if the sensors string is not null and contains a comma
+        if (sensors != null && sensors.contains(",")) {
+            // Split the string by comma and check if there are more than one sensor
+            String[] sensorArray = sensors.split(",");
+            return sensorArray.length > 1;
+        } else {
+            return false; // Return false if the sensors string is null or doesn't contain a comma
+        }
+    }
+
+    public static void answerto4(Map<Integer,Cell> map){
+        Map <String,Integer> countmil = new HashMap<>();
+
+        String highestyear = "";
+        Integer highcount = 0;
+        for (Cell row: map.values()){
+            if (row.getl_stat() != null && !row.getl_stat().equals("Discontinued") && !row.getl_stat().equals("Cancelled")){
+            String l_status = row.getl_stat();
+            if (row.launchmill(l_status)){
+                countmil.put(l_status,countmil.getOrDefault(l_status, 0) + 1);
+            }
+
+        }
+
+        //Find the year with the most phones
+        for (String year : countmil.keySet()){
+            Integer count = countmil.get(year);
+
+            if (count > highcount){
+                highestyear = year;
+                highcount = count;
+            }
+        }
+
+
+
+
+
+    }
+    System.out.println("The year after 1999 with the most phones launched is " + highestyear);
+}
+//If the phone launched after 1999
+    Boolean launchmill(String inp){
+    
+        return (Integer.parseInt(inp) > 1999);
+   
+}
+}
 
 
  class Project {
@@ -288,31 +401,54 @@ class Cell{
                     case 6:
                     Row.setbodysim(nextline[i]);
                     case 7:
-                    break;
-                    case 8:
                     Row.setdistype(nextline[i]);
                     break;
-                    case 9:
+                    case 8:
                     Row.setdissize(nextline[i]);
                     break;
-                    case 10:
+                    case 9:
                     Row.setres(nextline[i]);
-                    case 11:
-                    Row.setsensors(nextline[i]);
                     break;
-                    case 12:
+                    case 10:
+                    Row.setsensors(nextline[i]);
+                    case 11:
                     Row.setos(nextline[i]);
                     break;
                 }
             }
             Rows.put(rowNum, Row);
             rowNum++;
-            
+
          /*   for (String cell : nextline) { 
                 System.out.print(cell + " "); 
             } 
             System.out.println(); */
         }
+             // Output the HashMap
+            /* for (Map.Entry<Integer, Cell> entry : Rows.entrySet()) {
+                System.out.println("Row " + entry.getKey() + ":");
+                Cell cell = entry.getValue();
+                System.out.println("OEM: " + cell.getoem());
+                System.out.println("Model: " + cell.getmodel());
+                System.out.println("Launch Year: " + cell.getlaunchan());
+                System.out.println("Launch Status: " + cell.getl_stat());
+                System.out.println("Dimensions: " + cell.getdim());
+                System.out.println("Weight: " + cell.getweight());
+                System.out.println("Body sim: " + cell.getbodysim());
+                System.out.println("Dis type: " + cell.getdistype());
+                System.out.println("Dis size: " + cell.getdissize());
+                System.out.println("Resolution : " + cell.getres());
+                System.out.println("Sensors:" + cell.getsensors());
+                System.out.println("Os: " + cell.getos());
+
+                // Add similar lines for other attributes
+                System.out.println(); // Add an empty line for separation
+            }   */
+// Answering the 4 questions
+            Cell.calculatehighestav(Rows);
+            Cell.anstonumtwo(Rows);
+            Cell.answerto3(Rows);
+            Cell.answerto4(Rows);
     } catch (IOException e) {
         // Handle the IOException
         e.printStackTrace();
